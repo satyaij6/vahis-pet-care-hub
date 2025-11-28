@@ -1,5 +1,7 @@
 import Layout from "@/components/Layout";
 import PetCard from "@/components/PetCard";
+import CreativeBanner from "@/components/CreativeBanner";
+import Reviews from "@/components/Reviews";
 import { Button } from "@/components/ui/button";
 import { pets } from "@/lib/data";
 import { Link } from "wouter";
@@ -80,6 +82,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Creative Banner */}
+      <CreativeBanner />
 
       {/* Why Choose Us */}
       <section className="py-20 bg-white">
@@ -195,6 +200,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Reviews Section */}
+      <Reviews />
 
       {/* Grooming Promo */}
       <section className="py-24 bg-slate-900 text-white relative overflow-hidden">
