@@ -1,6 +1,7 @@
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { products, Product } from "@/lib/data";
+import { products as initialProducts, Product, Booking, bookings as initialBookings } from "@/lib/data";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { ShoppingBag, Plus, Check } from "lucide-react";
 import { useState } from "react";
@@ -13,8 +14,12 @@ import storeImg from '@assets/generated_images/pet_boutique_interior.png';
 export default function Store() {
   const { toast } = useToast();
   const [cart, setCart] = useState<Product[]>([]);
+  const [products] = useLocalStorage<Product[]>("admin:products", initialProducts);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [bookings, setBookings] = useLocalStorage<Booking[]>("admin:bookings", initialBookings);
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
 
   const addToCart = (product: Product) => {
     setCart([...cart, product]);
@@ -31,6 +36,16 @@ export default function Store() {
       setIsSubmitting(false);
       setCart([]);
       setIsCartOpen(false);
+      // Save enquiry as a booking
+      try {
+        const nextId = bookings.length ? Math.max(...bookings.map(b => b.id)) + 1 : 1;
+        const detail = cart.map(p => p.name).join(", ") || 'Products Enquiry';
+        const timeStr = new Date().toLocaleString();
+        const newBooking: Booking = { id: nextId, name: customerName || 'Guest', phone: customerPhone || undefined, type: 'Enquiry', detail, time: timeStr, status: 'Pending' };
+        setBookings([...bookings, newBooking]);
+      } catch (err) {
+        console.error(err);
+      }
       toast({
         title: "Enquiry Sent! 📝",
         description: "We'll get back to you with availability and pricing shortly.",
@@ -83,7 +98,7 @@ export default function Store() {
                     <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                       {cart.map((item, idx) => (
                         <div key={idx} className="flex items-center gap-4 bg-muted/20 p-3 rounded-xl">
-                          <img src={item.imageUrl} className="w-16 h-16 rounded-lg object-cover" />
+                          <img alt={item.name} src={item.imageUrl} className="w-16 h-16 rounded-lg object-cover" />
                           <div className="flex-1">
                             <h4 className="font-bold text-sm">{item.name}</h4>
                             <p className="text-xs text-muted-foreground">₹{item.price}</p>
@@ -99,14 +114,14 @@ export default function Store() {
                     </div>
 
                     <form onSubmit={handleEnquirySubmit} className="mt-6 space-y-4 border-t pt-6">
-                      <div className="space-y-2">
-                        <Label>Your Name</Label>
-                        <Input required placeholder="Jane Doe" />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>WhatsApp Number</Label>
-                        <Input required placeholder="+91..." />
-                      </div>
+                        <div className="space-y-2">
+                          <Label>Your Name</Label>
+                          <Input required placeholder="Jane Doe" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>WhatsApp Number</Label>
+                          <Input required placeholder="+91..." value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                        </div>
                       <Button type="submit" className="w-full py-6 font-bold rounded-xl" disabled={isSubmitting}>
                         {isSubmitting ? "Sending..." : "Send Enquiry via WhatsApp 💬"}
                       </Button>
@@ -121,7 +136,7 @@ export default function Store() {
             {products.map(product => (
               <Card key={product.id} className="border-none shadow-md hover:shadow-xl transition-all rounded-2xl overflow-hidden group">
                 <div className="h-48 overflow-hidden relative">
-                  <img src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                  <img alt={product.name} src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                   <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold shadow-sm">
                     {product.category}
                   </div>

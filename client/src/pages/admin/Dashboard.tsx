@@ -1,9 +1,18 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { PawPrint, Package, Calendar, LogOut } from "lucide-react";
+import { Booking, bookings as initialBookings, Product, products as initialProducts } from "@/lib/data";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminDashboard() {
+  const [, setLocation] = useLocation();
+  const { logoutMutation } = useAuth();
+  const [bookings] = useLocalStorage<Booking[]>("admin:bookings", initialBookings);
+  const [storeProducts] = useLocalStorage<Product[]>("admin:products", initialProducts);
+  const pendingVisitsCount = bookings.filter(b => b.status !== 'Completed').length;
+
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="bg-white border-b px-6 py-4 flex justify-between items-center sticky top-0">
@@ -11,16 +20,25 @@ export default function AdminDashboard() {
           <PawPrint className="text-primary" />
           <h1 className="font-bold text-lg">Admin Dashboard</h1>
         </div>
-        <Link href="/">
-          <Button variant="ghost" size="sm" className="text-red-500 hover:bg-red-50 hover:text-red-600">
-            <LogOut size={16} className="mr-2" /> Logout
-          </Button>
-        </Link>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="text-red-500 hover:bg-red-50 hover:text-red-600"
+          onClick={() => {
+            logoutMutation.mutate(undefined, {
+              onSuccess: () => setLocation("/admin/login"),
+            });
+          }}
+          disabled={logoutMutation.isPending}
+        >
+          <LogOut size={16} className="mr-2" />
+          {logoutMutation.isPending ? "Logging out..." : "Logout"}
+        </Button>
       </header>
 
       <div className="container mx-auto px-4 py-8">
         <h2 className="text-2xl font-bold mb-6">Welcome back, Admin!</h2>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Link href="/admin/pets">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer border-none shadow-md">
@@ -42,7 +60,7 @@ export default function AdminDashboard() {
                 <Package className="text-secondary opacity-50" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-1">4</p>
+                <p className="text-3xl font-bold mb-1">{storeProducts.length}</p>
                 <p className="text-sm text-muted-foreground">In Store</p>
               </CardContent>
             </Card>
@@ -55,7 +73,7 @@ export default function AdminDashboard() {
                 <Calendar className="text-green-500 opacity-50" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-1">12</p>
+                <p className="text-3xl font-bold mb-1">{pendingVisitsCount}</p>
                 <p className="text-sm text-muted-foreground">Pending Visits</p>
               </CardContent>
             </Card>
@@ -65,15 +83,30 @@ export default function AdminDashboard() {
         <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border">
           <h3 className="font-bold text-lg mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            {[1,2,3].map((i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full" />
-                  <p className="font-medium text-sm">New visit request from Rahul</p>
+            {[...bookings].sort((a, b) => b.id - a.id).slice(0, 3).map((booking) => {
+              let activityText = `New request from ${booking.name}`;
+              if (booking.type === 'Grooming') {
+                activityText = `Grooming visit request from ${booking.name}`;
+              } else if (booking.type === 'Enquiry') {
+                activityText = `Product purchasing request from ${booking.name}`;
+              } else if (booking.type === 'Visit') {
+                activityText = booking.detail === 'Visit request'
+                  ? `New visit request from ${booking.name}`
+                  : `Puppy buying request from ${booking.name}`;
+              }
+
+              return (
+                <div key={booking.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${booking.type === 'Grooming' ? 'bg-pink-500' :
+                      booking.type === 'Enquiry' ? 'bg-blue-500' : 'bg-purple-500'
+                      }`} />
+                    <p className="font-medium text-sm">{activityText}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{booking.time}</span>
                 </div>
-                <span className="text-xs text-muted-foreground">2 mins ago</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

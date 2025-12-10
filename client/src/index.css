@@ -73,3 +73,20 @@
     @apply font-heading font-bold;
   }
 }
+
+@keyframes drawUnderline {
+  from {
+    stroke-dasharray: 0 200;
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dasharray: 200 0;
+    stroke-dashoffset: 0;
+  }
+}
+
+.underline-draw {
+  stroke-dasharray: 200;
+  stroke-dashoffset: 200;
+  animation: drawUnderline 1.2s ease-out forwards;
+}

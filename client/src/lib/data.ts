@@ -155,3 +155,19 @@ export const groomingServices = [
   { id: 3, name: "Nail Trimming", price: "₹300" },
   { id: 4, name: "Tick & Flea Treatment", price: "₹1200" },
 ];
+
+export interface Booking {
+  id: number;
+  name: string;
+  type: 'Visit' | 'Grooming' | 'Enquiry' | 'Enquiry_Product' | string;
+  detail: string;
+  time: string;
+  status: 'Pending' | 'Confirmed' | 'Completed' | 'Cancelled' | string;
+  phone?: string;
+}
+
+export const bookings: Booking[] = [
+  { id: 1, name: 'Rahul Kumar', type: 'Visit', detail: 'Beagle Puppy', time: 'Tomorrow, 10:00 AM', status: 'Pending', phone: '+91 98765 43210' },
+  { id: 2, name: 'Priya Sharma', type: 'Grooming', detail: 'Bath & Blow Dry', time: 'Today, 2:00 PM', status: 'Confirmed', phone: '+91 98123 45678' },
+  { id: 3, name: 'Amit Patel', type: 'Enquiry', detail: '3 Products', time: 'Yesterday', status: 'Completed', phone: '+91 90000 11122' },
+];

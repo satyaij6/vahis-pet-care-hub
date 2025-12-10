@@ -1,6 +1,7 @@
 import Layout from "@/components/Layout";
 import PetCard from "@/components/PetCard";
-import { pets } from "@/lib/data";
+import { pets as initialPets } from "@/lib/data";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Filter } from "lucide-react";
@@ -15,15 +16,17 @@ export default function Puppies() {
   const [searchTerm, setSearchTerm] = useState(initialBreed);
   const [priceRange, setPriceRange] = useState<string>("all");
 
+  const [pets] = useLocalStorage("admin:pets", initialPets);
   const filteredPets = pets.filter(pet => {
-    const matchesSearch = pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          pet.name.toLowerCase().includes(searchTerm.toLowerCase());
-    
+    const matchesSearch = pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      pet.type.toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesPrice = priceRange === "all" ? true :
-                         priceRange === "low" ? pet.priceMin < 20000 :
-                         priceRange === "mid" ? pet.priceMin >= 20000 && pet.priceMin < 30000 :
-                         pet.priceMin >= 30000;
-                         
+      priceRange === "low" ? pet.priceMin < 20000 :
+        priceRange === "mid" ? pet.priceMin >= 20000 && pet.priceMin < 30000 :
+          pet.priceMin >= 30000;
+
     return matchesSearch && matchesPrice;
   });
 
@@ -44,16 +47,17 @@ export default function Puppies() {
           <div className="bg-white rounded-2xl shadow-sm border p-4 mb-8 max-w-4xl mx-auto flex flex-col md:flex-row gap-4 items-center">
             <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={20} />
-              <Input 
-                placeholder="Search by breed or name..." 
+              <Input
+                placeholder="Search by breed, name or type (e.g., dog, cat)..."
                 className="pl-10 rounded-xl border-muted bg-muted/20 h-12 font-medium"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <div className="flex gap-3 w-full md:w-auto">
-              <select 
+              <select
                 className="h-12 px-4 rounded-xl border border-muted bg-muted/20 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 w-full md:w-48"
+                aria-label="Price Range"
                 value={priceRange}
                 onChange={(e) => setPriceRange(e.target.value)}
               >
@@ -80,8 +84,8 @@ export default function Puppies() {
               <div className="text-6xl mb-4">🐶❓</div>
               <h3 className="text-2xl font-bold text-foreground mb-2">No puppies found</h3>
               <p className="text-muted-foreground">Try adjusting your filters or check back later!</p>
-              <Button 
-                variant="link" 
+              <Button
+                variant="link"
                 onClick={() => { setSearchTerm(""); setPriceRange("all"); }}
                 className="mt-4 text-primary font-bold"
               >

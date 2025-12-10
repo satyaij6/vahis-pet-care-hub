@@ -1,5 +1,6 @@
 import { type User, type InsertUser } from "@shared/schema";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
 
 // modify the interface with any CRUD methods
 // you might need
@@ -15,6 +16,15 @@ export class MemStorage implements IStorage {
 
   constructor() {
     this.users = new Map();
+    this.seedAdmin();
+  }
+
+  private async seedAdmin() {
+    const hashedPassword = await bcrypt.hash("vahis123", 10);
+    this.createUser({
+      username: "admin",
+      password: hashedPassword,
+    });
   }
 
   async getUser(id: string): Promise<User | undefined> {

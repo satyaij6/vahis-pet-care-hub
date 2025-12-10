@@ -5,20 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { PawPrint } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminLogin() {
   const [, setLocation] = useLocation();
+  const { loginMutation } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username === "admin" && password === "vahis123") {
-      setLocation("/admin/dashboard");
-    } else {
-      setError("Invalid credentials");
-    }
+    loginMutation.mutate({ username, password }, {
+      onSuccess: () => {
+        setLocation("/admin/dashboard");
+      },
+    });
   };
 
   return (
@@ -36,23 +37,25 @@ export default function AdminLogin() {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
               <Label>Username</Label>
-              <Input 
-                value={username} 
-                onChange={e => setUsername(e.target.value)} 
+              <Input
+                value={username}
+                onChange={e => setUsername(e.target.value)}
                 className="h-11"
               />
             </div>
             <div className="space-y-2">
               <Label>Password</Label>
-              <Input 
-                type="password" 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
+              <Input
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
                 className="h-11"
               />
             </div>
-            {error && <p className="text-red-500 text-sm font-bold">{error}</p>}
-            <Button type="submit" className="w-full h-11 font-bold mt-2">Login</Button>
+            {loginMutation.error && <p className="text-red-500 text-sm font-bold">{loginMutation.error.message}</p>}
+            <Button type="submit" className="w-full h-11 font-bold mt-2" disabled={loginMutation.isPending}>
+              {loginMutation.isPending ? "Logging in..." : "Login"}
+            </Button>
           </form>
           <div className="mt-4 text-center text-xs text-muted-foreground">
             Use admin / vahis123

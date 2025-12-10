@@ -4,15 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Home, IndianRupee, Activity, Baby, Brain, Send, Share2, RefreshCw, Heart } from "lucide-react";
 import { Link } from "wouter";
-
-interface ChatMessage {
-  id: string;
-  type: 'bot' | 'user';
-  text: string;
-  options?: string[];
-}
+import { pets as initialPets } from "@/lib/data";
+import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useToast } from "@/hooks/use-toast";
 
 interface UserPreferences {
+  petType?: string;
   budget?: string;
   housing?: string;
   exercise?: string;
@@ -34,8 +31,16 @@ export default function PuppyMatchChat() {
   const [preferences, setPreferences] = useState<UserPreferences>({});
   const [isTyping, setIsTyping] = useState(false);
   const [result, setResult] = useState<Recommendation | null>(null);
+  const [showSorry, setShowSorry] = useState(false);
+  const [pets] = useLocalStorage("admin:pets", initialPets);
+  const { toast } = useToast();
 
   const questions = [
+    {
+      key: 'petType',
+      text: "What type of pet are you looking for today? 🐾",
+      options: ["Dog", "Cat", "Other"]
+    },
     {
       key: 'budget',
       text: "Let's start with your budget for a furry friend! 💰",
@@ -70,8 +75,14 @@ export default function PuppyMatchChat() {
 
   const handleOptionClick = (option: string) => {
     const currentQuestion = questions[step];
+
+    if (currentQuestion.key === 'petType' && option === 'Other') {
+      setShowSorry(true);
+      return;
+    }
+
     setPreferences(prev => ({ ...prev, [currentQuestion.key]: option }));
-    
+
     if (step < questions.length - 1) {
       setIsTyping(true);
       setTimeout(() => {
@@ -83,45 +94,99 @@ export default function PuppyMatchChat() {
     }
   };
 
-  const handleCompletion = () => {
+  const handleCompletion = async () => {
     setStep(questions.length); // Loading state
-    setTimeout(() => {
-      // Mock AI Logic
-      let recommendation = {
-        breed: "Beagle",
-        desc: "The merry Beagle is fun-loving and great with families!",
-        reasons: ["Perfect size for apartments", "Great with kids", "Playful but manageable energy"],
-        cost: "₹4,000 – ₹6,000",
-        img: "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=600&q=80"
-      };
 
-      if (preferences.housing === "Villa" && preferences.exercise === "High (Active play)") {
-         recommendation = {
-          breed: "Golden Retriever",
-          desc: "The ultimate family dog! Gentle, smart, and loves everyone.",
-          reasons: ["Thrives in larger spaces", "Loves active play", "Ideally suited for families"],
-          cost: "₹6,000 – ₹9,000",
-          img: "https://images.unsplash.com/photo-1633722715463-d30f4f325e24?auto=format&fit=crop&w=600&q=80"
-        };
-      } else if (preferences.housing === "Apartment" && preferences.exercise === "Low (Short walks)") {
-        recommendation = {
-          breed: "Shih Tzu",
-          desc: "A royal companion that loves laps and indoor play.",
-          reasons: ["Perfect apartment dweller", "Low exercise needs", "Hypoallergenic coat"],
-          cost: "₹3,000 – ₹5,000",
-          img: "https://images.unsplash.com/photo-1583337130417-3346a1be7dee?auto=format&fit=crop&w=600&q=80"
-        };
+    try {
+      const res = await fetch("/api/match-pet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preferences, pets })
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to get recommendation");
       }
 
-      setResult(recommendation);
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      setResult({
+        breed: data.pet.name, // Displaying Name instead of just breed for personalization
+        desc: data.matchReason,
+        reasons: data.careTips,
+        cost: `₹${data.pet.priceMin.toLocaleString()}`,
+        img: data.pet.imageUrl
+      });
+
       setStep(questions.length + 1);
-    }, 2000);
+
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "AI Connection Issue",
+        description: error instanceof Error ? error.message : "Could not connect to Gemini AI.",
+        variant: "destructive"
+      });
+      // Fallback mock for demo if API fails
+      setStep(questions.length + 1);
+      setResult({
+        breed: "Beagle",
+        desc: "Fallback: The merry Beagle is fun-loving and great with families! (AI unavailable)",
+        reasons: ["Great with kids", "Playful", "Classic choice"],
+        cost: "₹25,000",
+        img: "https://images.unsplash.com/photo-1537151608828-ea2b11777ee8?auto=format&fit=crop&w=600&q=80"
+      });
+    }
   };
 
   return (
     <div className="w-full max-w-2xl mx-auto p-4">
       <AnimatePresence mode="wait">
-        {step < questions.length ? (
+        {showSorry ? (
+          <motion.div
+            key="sorry"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-white rounded-3xl shadow-xl p-8 border-2 border-primary/10 text-center"
+          >
+            <div className="flex justify-center mb-6">
+              <div className="bg-orange-100 p-4 rounded-full">
+                <Heart className="text-orange-500 w-12 h-12" />
+              </div>
+            </div>
+
+            <h2 className="text-2xl font-heading font-bold text-gray-800 mb-4">
+              We Specialise in Paws! 🐾
+            </h2>
+
+            <p className="text-lg text-gray-600 leading-relaxed mb-6">
+              Sorry, we currently only provide <span className="font-bold text-primary">Dogs</span> and <span className="font-bold text-primary">Cats</span>.
+            </p>
+
+            <div className="bg-blue-50 p-6 rounded-2xl mb-8 text-left border border-blue-100">
+              <h3 className="font-bold text-blue-800 mb-2 flex items-center gap-2">
+                <Sparkles size={18} /> Why we focus on them:
+              </h3>
+              <p className="text-blue-700/80 mb-2">
+                Dogs and cats have a unique history of companionship with humans, offering unmatched emotional support, loyalty, and interaction.
+              </p>
+              <p className="text-blue-700/80">
+                We believe in being the absolute best at connecting these specific soulful companions with their forever homes!
+              </p>
+            </div>
+
+            <Button
+              onClick={() => { setShowSorry(false); setStep(0); }}
+              className="w-full py-6 text-lg rounded-xl"
+            >
+              <RefreshCw className="mr-2 h-5 w-5" /> Start Over
+            </Button>
+          </motion.div>
+        ) : step < questions.length ? (
           <motion.div
             key="question-card"
             initial={{ opacity: 0, y: 20 }}
@@ -164,10 +229,10 @@ export default function PuppyMatchChat() {
             className="bg-white rounded-3xl shadow-xl p-12 text-center border-2 border-primary/10 flex flex-col items-center justify-center min-h-[400px]"
           >
             <div className="relative mb-8">
-               <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
-               <div className="bg-primary text-primary-foreground p-6 rounded-full relative z-10">
-                 <Brain size={48} className="animate-pulse" />
-               </div>
+              <div className="absolute inset-0 bg-primary/20 rounded-full animate-ping" />
+              <div className="bg-primary text-primary-foreground p-6 rounded-full relative z-10">
+                <Brain size={48} className="animate-pulse" />
+              </div>
             </div>
             <h3 className="text-2xl font-heading font-bold text-primary mb-2">Analyzing your profile...</h3>
             <p className="text-muted-foreground text-lg">Finding the perfect tail-wagger for you! 🐾</p>
@@ -180,9 +245,9 @@ export default function PuppyMatchChat() {
             className="bg-white rounded-3xl shadow-2xl overflow-hidden border-4 border-primary/10"
           >
             <div className="bg-primary p-8 text-center relative overflow-hidden">
-               <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/paws.png')]"></div>
-               <h2 className="relative z-10 font-heading font-bold text-3xl text-white mb-2">It's a Match! 🎉</h2>
-               <p className="relative z-10 text-primary-foreground/90 text-lg">Based on your lifestyle, we recommend:</p>
+              <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('https://www.transparenttextures.com/patterns/paws.png')]"></div>
+              <h2 className="relative z-10 font-heading font-bold text-3xl text-white mb-2">It's a Match! 🎉</h2>
+              <p className="relative z-10 text-primary-foreground/90 text-lg">Based on your lifestyle, we recommend:</p>
             </div>
 
             <div className="p-8">
@@ -195,7 +260,7 @@ export default function PuppyMatchChat() {
                 <div className="w-full md:w-2/3 text-center md:text-left">
                   <h3 className="font-heading font-bold text-4xl text-secondary mb-3">{result.breed}</h3>
                   <p className="text-xl text-muted-foreground leading-relaxed mb-4">{result.desc}</p>
-                  
+
                   <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full border border-green-100 font-bold">
                     <IndianRupee size={18} />
                     Est. Cost: {result.cost}/mo
@@ -220,7 +285,7 @@ export default function PuppyMatchChat() {
                     View Available {result.breed} Puppies
                   </Button>
                 </Link>
-                
+
                 <div className="grid grid-cols-2 gap-3">
                   <Button variant="outline" className="py-6 rounded-xl font-bold" onClick={() => window.location.reload()}>
                     <RefreshCw size={18} className="mr-2" /> Start Over

@@ -16,7 +16,7 @@ export default function Grooming() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate API call
     setTimeout(() => {
       setIsLoading(false);
@@ -33,16 +33,16 @@ export default function Grooming() {
       <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white">
         {/* Hero */}
         <section className="bg-slate-900 text-white py-20 relative overflow-hidden">
-           <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
-           <div className="container mx-auto px-4 relative z-10 text-center">
-             <h1 className="font-heading font-bold text-5xl mb-4">Vahis Pet Spa 🛁</h1>
-             <p className="text-xl text-slate-300 max-w-2xl mx-auto">Professional grooming services to keep your furry friend looking and feeling their best.</p>
-           </div>
+          <div className="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+          <div className="container mx-auto px-4 relative z-10 text-center">
+            <h1 className="font-heading font-bold text-5xl mb-4">Vahis Pet Spa 🛁</h1>
+            <p className="text-xl text-slate-300 max-w-2xl mx-auto">Professional grooming services to keep your furry friend looking and feeling their best.</p>
+          </div>
         </section>
 
         <div className="container mx-auto px-4 py-12 -mt-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-            
+
             {/* Services List */}
             <div className="space-y-6">
               <div className="bg-white rounded-3xl p-8 shadow-xl border border-slate-100">
@@ -56,7 +56,7 @@ export default function Grooming() {
                   ))}
                 </div>
               </div>
-              
+
               <div className="rounded-3xl overflow-hidden shadow-xl border-4 border-white rotate-1 hover:rotate-0 transition-transform duration-500">
                 <img src={groomingImg} alt="Happy dog grooming" className="w-full h-64 object-cover" />
               </div>
@@ -83,7 +83,7 @@ export default function Grooming() {
                         </SelectContent>
                       </Select>
                     </div>
-                     <div className="space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="breed">Breed</Label>
                       <Input id="breed" placeholder="e.g. Shih Tzu" className="h-12 rounded-xl" required />
                     </div>
@@ -92,15 +92,15 @@ export default function Grooming() {
                   <div className="space-y-2">
                     <Label htmlFor="service">Service Needed</Label>
                     <Select required>
-                        <SelectTrigger className="h-12 rounded-xl">
-                          <SelectValue placeholder="Select Service..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {groomingServices.map(s => (
-                            <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <SelectTrigger className="h-12 rounded-xl">
+                        <SelectValue placeholder="Select Service..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {groomingServices.map(s => (
+                          <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">
