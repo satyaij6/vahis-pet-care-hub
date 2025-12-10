@@ -14,12 +14,18 @@ declare global {
     }
 }
 
+import MemoryStore from "memorystore";
+
+const SessionStore = MemoryStore(session);
+
 export function setupAuth(app: Express) {
     const sessionSettings: session.SessionOptions = {
         secret: process.env.SESSION_SECRET || "pawprint_secret_key",
         resave: false,
         saveUninitialized: false,
-        store: new session.MemoryStore(),
+        store: new SessionStore({
+            checkPeriod: 86400000 // prune expired entries every 24h
+        }),
     };
 
     if (app.get("env") === "production") {
