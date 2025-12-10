@@ -5,7 +5,7 @@ import session from "express-session";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
-import { User as SharedUser } from "@shared/schema";
+import { User as SharedUser } from "../shared/schema";
 import bcrypt from "bcryptjs";
 
 declare global {
