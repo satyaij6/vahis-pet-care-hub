@@ -15,12 +15,11 @@ app.use(express.urlencoded({ extended: false }));
 // Actually simpler: just await it at top level if supported, or use a handler wrapper.
 // But mostly registerRoutes just attaches handlers.
 
-(async () => {
-    try {
-        await registerRoutes(httpServer, app);
-    } catch (err) {
-        console.error("Failed to register routes", err);
-    }
-})();
+// Top-level await to ensure routes are registered BEFORE Vercel serves the app
+try {
+    await registerRoutes(httpServer, app);
+} catch (err) {
+    console.error("Failed to register routes", err);
+}
 
 export default app;
