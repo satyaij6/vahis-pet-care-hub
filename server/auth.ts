@@ -14,18 +14,12 @@ declare global {
     }
 }
 
-import MemoryStore from "memorystore";
-
-const SessionStore = MemoryStore(session);
-
 export function setupAuth(app: Express) {
     const sessionSettings: session.SessionOptions = {
         secret: process.env.SESSION_SECRET || "pawprint_secret_key",
         resave: false,
         saveUninitialized: false,
-        store: new SessionStore({
-            checkPeriod: 86400000 // prune expired entries every 24h
-        }),
+        store: storage.sessionStore,
     };
 
     if (app.get("env") === "production") {
@@ -37,13 +31,9 @@ export function setupAuth(app: Express) {
     app.use(passport.session());
 
     passport.use(
-        // By default, LocalStrategy looks for "username" and "password"
-        // in req.body
         new LocalStrategy(async (username, password, done) => {
             try {
                 const user = await storage.getUserByUsername(username);
-
-                // Use bcrypt to compare
                 if (!user || !(await bcrypt.compare(password, user.password))) {
                     return done(null, false);
                 } else {
@@ -60,6 +50,9 @@ export function setupAuth(app: Express) {
     });
 
     passport.deserializeUser(async (id: string, done) => {
+        // id is string in shared schema but might be number if serial.
+        // standard shared schema has 'id' as serial (number) for pets but varchar for users.
+        // User id is varchar/uuid so string is correct.
         const user = await storage.getUser(id);
         done(null, user);
     });
@@ -71,7 +64,6 @@ export function setupAuth(app: Express) {
                 return res.status(400).send("Username already exists");
             }
 
-            // Hash password before storing
             const hashedPassword = await bcrypt.hash(req.body.password, 10);
 
             const user = await storage.createUser({

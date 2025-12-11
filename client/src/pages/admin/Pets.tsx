@@ -1,25 +1,72 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { pets as initialPets, Pet } from "@/lib/data";
 import { Link } from "wouter";
-import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { Plus, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Pet } from "@shared/schema";
 
 export default function AdminPets() {
   const { toast } = useToast();
-  const [items, setItems] = useLocalStorage<Pet[]>("admin:pets", initialPets);
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Pet | null>(null);
 
+  const { data: pets, isLoading } = useQuery<Pet[]>({ queryKey: ["/api/pets"] });
+
+  const createMutation = useMutation({
+    mutationFn: async (pet: Omit<Pet, "id">) => {
+      const res = await apiRequest("POST", "/api/pets", pet);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({ title: "Pet added successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (pet: Pet) => {
+      const res = await apiRequest("PATCH", `/api/pets/${pet.id}`, pet);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({ title: "Pet updated successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/pets/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/pets"] });
+      toast({ title: "Pet deleted" });
+    },
+  });
+
   const openAdd = () => { setEditing(null); setIsOpen(true); };
   const openEdit = (p: Pet) => { setEditing(p); setIsOpen(true); };
-  const handleDelete = (id: number) => { if (!confirm("Delete pet?")) return; setItems(items.filter(x => x.id !== id)); toast({ title: "Pet deleted" }); };
-  const upsert = (p: Pet) => { if (editing) { setItems(items.map(x => x.id === p.id ? p : x)); toast({ title: "Pet updated" }); } else { const nextId = items.length ? Math.max(...items.map(i => i.id)) + 1 : 1; setItems([...items, { ...p, id: nextId }]); toast({ title: "Pet added to the List successfully" }); } setIsOpen(false); };
+
+  const handleDelete = (id: number) => {
+    if (!confirm("Delete pet?")) return;
+    deleteMutation.mutate(id);
+  };
+
+  const handleSave = (petData: any) => {
+    if (editing) {
+      updateMutation.mutate({ ...petData, id: editing.id });
+    } else {
+      createMutation.mutate(petData);
+    }
+  };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,6 +82,13 @@ export default function AdminPets() {
       reader.readAsDataURL(file);
     }
   };
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+  }
+
+  const items = pets || [];
+
   return (
     <div className="min-h-screen bg-slate-100 p-8">
       <div className="max-w-6xl mx-auto">
@@ -110,11 +164,11 @@ export default function AdminPets() {
               </div>
               <div className="space-y-2">
                 <Label>Type</Label>
-                <Input defaultValue={editing?.type || "dog"} id="pet-type" />
+                <Input defaultValue={editing?.type || "Dog"} id="pet-type" />
               </div>
               <div className="space-y-2">
                 <Label>Age Weeks</Label>
-                <Input defaultValue={(editing?.ageWeeks || 0).toString()} id="pet-age" />
+                <Input defaultValue={(editing?.ageWeeks || 0).toString()} type="number" id="pet-age" />
               </div>
               <div className="space-y-2">
                 <Label>Gender</Label>
@@ -122,11 +176,11 @@ export default function AdminPets() {
               </div>
               <div className="space-y-2">
                 <Label>Price Min</Label>
-                <Input defaultValue={(editing?.priceMin || 0).toString()} id="pet-price-min" />
+                <Input defaultValue={(editing?.priceMin || 0).toString()} type="number" id="pet-price-min" />
               </div>
               <div className="space-y-2">
                 <Label>Price Max</Label>
-                <Input defaultValue={(editing?.priceMax || 0).toString()} id="pet-price-max" />
+                <Input defaultValue={(editing?.priceMax || 0).toString()} type="number" id="pet-price-max" />
               </div>
               <div className="space-y-2">
                 <Label>Status</Label>
@@ -147,20 +201,25 @@ export default function AdminPets() {
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="button" onClick={() => {
-                const name = (document.getElementById("pet-name") as HTMLInputElement).value;
-                const breed = (document.getElementById("pet-breed") as HTMLInputElement).value;
-                const type = (document.getElementById("pet-type") as HTMLInputElement).value as Pet["type"];
-                const ageWeeks = parseInt((document.getElementById("pet-age") as HTMLInputElement).value || "0", 10);
-                const gender = (document.getElementById("pet-gender") as HTMLInputElement).value as Pet["gender"];
-                const priceMin = parseInt((document.getElementById("pet-price-min") as HTMLInputElement).value || "0", 10);
-                const priceMax = parseInt((document.getElementById("pet-price-max") as HTMLInputElement).value || "0", 10);
-                const status = (document.getElementById("pet-status") as HTMLInputElement).value as Pet["status"];
-                const imageUrl = (document.getElementById("pet-image") as HTMLInputElement).value;
-                const description = (document.getElementById("pet-description") as HTMLInputElement).value;
-                if (!name) { alert("Please enter a name"); return; }
-                upsert({ id: editing?.id || -1, name, breed, type, ageWeeks, gender, priceMin, priceMax, status, imageUrl, featured: false, description });
-              }}>Save</Button>
+              <Button type="button"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                onClick={() => {
+                  const name = (document.getElementById("pet-name") as HTMLInputElement).value;
+                  const breed = (document.getElementById("pet-breed") as HTMLInputElement).value;
+                  const type = (document.getElementById("pet-type") as HTMLInputElement).value;
+                  const ageWeeks = parseInt((document.getElementById("pet-age") as HTMLInputElement).value || "0", 10);
+                  const gender = (document.getElementById("pet-gender") as HTMLInputElement).value;
+                  const priceMin = parseInt((document.getElementById("pet-price-min") as HTMLInputElement).value || "0", 10);
+                  const priceMax = parseInt((document.getElementById("pet-price-max") as HTMLInputElement).value || "0", 10);
+                  const status = (document.getElementById("pet-status") as HTMLInputElement).value;
+                  const imageUrl = (document.getElementById("pet-image") as HTMLInputElement).value;
+                  const description = (document.getElementById("pet-description") as HTMLInputElement).value;
+                  if (!name) { alert("Please enter a name"); return; }
+
+                  handleSave({ name, breed, type, ageWeeks, gender, priceMin, priceMax, status, imageUrl, description });
+                }}>
+                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

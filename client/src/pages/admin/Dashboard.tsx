@@ -1,17 +1,24 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link, useLocation } from "wouter";
-import { PawPrint, Package, Calendar, LogOut } from "lucide-react";
-import { Booking, bookings as initialBookings, Product, products as initialProducts } from "@/lib/data";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { PawPrint, Package, Calendar, LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useQuery } from "@tanstack/react-query";
+import { Booking, Product, Pet } from "@shared/schema";
 
 export default function AdminDashboard() {
   const [, setLocation] = useLocation();
   const { logoutMutation } = useAuth();
-  const [bookings] = useLocalStorage<Booking[]>("admin:bookings", initialBookings);
-  const [storeProducts] = useLocalStorage<Product[]>("admin:products", initialProducts);
-  const pendingVisitsCount = bookings.filter(b => b.status !== 'Completed').length;
+
+  const { data: bookings } = useQuery<Booking[]>({ queryKey: ["/api/bookings"] });
+  const { data: products } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+  const { data: pets } = useQuery<Pet[]>({ queryKey: ["/api/pets"] });
+
+  const bookingList = bookings || [];
+  const productList = products || [];
+  const petList = pets || [];
+
+  const pendingVisitsCount = bookingList.filter(b => b.status !== 'Completed').length;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -47,7 +54,7 @@ export default function AdminDashboard() {
                 <PawPrint className="text-primary opacity-50" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-1">6</p>
+                <p className="text-3xl font-bold mb-1">{petList.length}</p>
                 <p className="text-sm text-muted-foreground">Active Listings</p>
               </CardContent>
             </Card>
@@ -60,7 +67,7 @@ export default function AdminDashboard() {
                 <Package className="text-secondary opacity-50" />
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold mb-1">{storeProducts.length}</p>
+                <p className="text-3xl font-bold mb-1">{productList.length}</p>
                 <p className="text-sm text-muted-foreground">In Store</p>
               </CardContent>
             </Card>
@@ -83,7 +90,7 @@ export default function AdminDashboard() {
         <div className="mt-8 bg-white p-6 rounded-2xl shadow-sm border">
           <h3 className="font-bold text-lg mb-4">Recent Activity</h3>
           <div className="space-y-4">
-            {[...bookings].sort((a, b) => b.id - a.id).slice(0, 3).map((booking) => {
+            {[...bookingList].sort((a, b) => b.id - a.id).slice(0, 3).map((booking) => {
               let activityText = `New request from ${booking.name}`;
               if (booking.type === 'Grooming') {
                 activityText = `Grooming visit request from ${booking.name}`;
@@ -107,6 +114,7 @@ export default function AdminDashboard() {
                 </div>
               );
             })}
+            {bookingList.length === 0 && <p className="text-muted-foreground text-sm">No recent activity.</p>}
           </div>
         </div>
       </div>

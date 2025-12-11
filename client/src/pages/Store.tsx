@@ -1,25 +1,48 @@
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
-import { products as initialProducts, Product, Booking, bookings as initialBookings } from "@/lib/data";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { Product, Booking } from "@shared/schema";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { ShoppingBag, Plus, Check } from "lucide-react";
+import { ShoppingBag, Plus, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import storeImg from '@assets/generated_images/pet_boutique_interior.png';
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function Store() {
   const { toast } = useToast();
   const [cart, setCart] = useState<Product[]>([]);
-  const [products] = useLocalStorage<Product[]>("admin:products", initialProducts);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [bookings, setBookings] = useLocalStorage<Booking[]>("admin:bookings", initialBookings);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+
+  const enquiryMutation = useMutation({
+    mutationFn: async (booking: Omit<Booking, "id">) => {
+      const res = await apiRequest("POST", "/api/bookings", booking);
+      return res.json();
+    },
+    onSuccess: () => {
+      setCart([]);
+      setIsCartOpen(false);
+      setCustomerName("");
+      setCustomerPhone("");
+      toast({
+        title: "Enquiry Sent! 📝",
+        description: "We'll get back to you with availability and pricing shortly.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send enquiry. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
 
   const addToCart = (product: Product) => {
     setCart([...cart, product]);
@@ -31,29 +54,35 @@ export default function Store() {
 
   const handleEnquirySubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setCart([]);
-      setIsCartOpen(false);
-      // Save enquiry as a booking
-      try {
-        const nextId = bookings.length ? Math.max(...bookings.map(b => b.id)) + 1 : 1;
-        const detail = cart.map(p => p.name).join(", ") || 'Products Enquiry';
-        const timeStr = new Date().toLocaleString();
-        const newBooking: Booking = { id: nextId, name: customerName || 'Guest', phone: customerPhone || undefined, type: 'Enquiry', detail, time: timeStr, status: 'Pending' };
-        setBookings([...bookings, newBooking]);
-      } catch (err) {
-        console.error(err);
-      }
-      toast({
-        title: "Enquiry Sent! 📝",
-        description: "We'll get back to you with availability and pricing shortly.",
-      });
-    }, 1500);
+
+    // Save enquiry as a booking
+    const detail = cart.map(p => p.name).join(", ") || 'Products Enquiry';
+    const timeStr = new Date().toLocaleString();
+    const newBooking = {
+      name: customerName || 'Guest',
+      phone: customerPhone || null,
+      type: 'Enquiry',
+      detail,
+      time: timeStr,
+      status: 'Pending'
+    };
+
+    enquiryMutation.mutate(newBooking);
   };
 
   const total = cart.reduce((sum, item) => sum + item.price, 0);
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  const items = products || [];
 
   return (
     <Layout>
@@ -72,7 +101,7 @@ export default function Store() {
         <div className="container mx-auto px-4 py-12">
           <div className="flex justify-between items-center mb-8">
             <h2 className="font-heading font-bold text-3xl text-amber-900">Featured Products</h2>
-            
+
             <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
               <SheetTrigger asChild>
                 <Button className="relative rounded-full px-6 font-bold bg-amber-600 hover:bg-amber-700">
@@ -88,7 +117,7 @@ export default function Store() {
                 <SheetHeader className="mb-6">
                   <SheetTitle className="font-heading text-2xl">Your Enquiry List 📝</SheetTitle>
                 </SheetHeader>
-                
+
                 {cart.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
                     Your list is empty.
@@ -114,16 +143,16 @@ export default function Store() {
                     </div>
 
                     <form onSubmit={handleEnquirySubmit} className="mt-6 space-y-4 border-t pt-6">
-                        <div className="space-y-2">
-                          <Label>Your Name</Label>
-                          <Input required placeholder="Jane Doe" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>WhatsApp Number</Label>
-                          <Input required placeholder="+91..." value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
-                        </div>
-                      <Button type="submit" className="w-full py-6 font-bold rounded-xl" disabled={isSubmitting}>
-                        {isSubmitting ? "Sending..." : "Send Enquiry via WhatsApp 💬"}
+                      <div className="space-y-2">
+                        <Label>Your Name</Label>
+                        <Input required placeholder="Jane Doe" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>WhatsApp Number</Label>
+                        <Input required placeholder="+91..." value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)} />
+                      </div>
+                      <Button type="submit" className="w-full py-6 font-bold rounded-xl" disabled={enquiryMutation.isPending}>
+                        {enquiryMutation.isPending ? "Sending..." : "Send Enquiry via WhatsApp 💬"}
                       </Button>
                     </form>
                   </div>
@@ -133,7 +162,7 @@ export default function Store() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.map(product => (
+            {items.map(product => (
               <Card key={product.id} className="border-none shadow-md hover:shadow-xl transition-all rounded-2xl overflow-hidden group">
                 <div className="h-48 overflow-hidden relative">
                   <img alt={product.name} src={product.imageUrl} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
@@ -147,7 +176,7 @@ export default function Store() {
                   <p className="font-bold text-amber-600 text-lg">₹{product.price}</p>
                 </CardContent>
                 <CardFooter className="p-5 pt-0">
-                  <Button 
+                  <Button
                     className="w-full rounded-xl font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border-none shadow-none"
                     onClick={() => addToCart(product)}
                   >

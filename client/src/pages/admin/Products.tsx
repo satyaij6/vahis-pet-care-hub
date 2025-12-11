@@ -1,20 +1,56 @@
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { products, Product } from "@/lib/data";
 import { Link } from "wouter";
-import { Plus, Pencil, Trash2, ArrowLeft } from "lucide-react";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { Plus, Pencil, Trash2, ArrowLeft, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Product } from "@shared/schema";
 
 export default function AdminProducts() {
   const { toast } = useToast();
-  const [items, setItems] = useLocalStorage<Product[]>("admin:products", products);
   const [isOpen, setIsOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
+
+  const { data: products, isLoading } = useQuery<Product[]>({ queryKey: ["/api/products"] });
+
+  const createMutation = useMutation({
+    mutationFn: async (product: Omit<Product, "id">) => {
+      const res = await apiRequest("POST", "/api/products", product);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({ title: "Product added successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (product: Product) => {
+      const res = await apiRequest("PATCH", `/api/products/${product.id}`, product);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({ title: "Product updated successfully" });
+      setIsOpen(false);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      await apiRequest("DELETE", `/api/products/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({ title: "Product deleted" });
+    },
+  });
 
   const openAdd = () => {
     setEditing(null);
@@ -28,20 +64,15 @@ export default function AdminProducts() {
 
   const handleDelete = (id: number) => {
     if (!confirm("Are you sure you want to delete this product?")) return;
-    setItems(items.filter(x => x.id !== id));
-    toast({ title: "Product deleted" });
+    deleteMutation.mutate(id);
   };
 
-  const handleUpsert = (p: Product) => {
+  const handleSave = (productData: any) => {
     if (editing) {
-      setItems(items.map(x => x.id === p.id ? p : x));
-      toast({ title: "Product updated" });
+      updateMutation.mutate({ ...productData, id: editing.id });
     } else {
-      const nextId = items.length ? Math.max(...items.map(i => i.id)) + 1 : 1;
-      setItems([...items, { ...p, id: nextId }]);
-      toast({ title: "Product added" });
+      createMutation.mutate(productData);
     }
-    setIsOpen(false);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,6 +89,12 @@ export default function AdminProducts() {
       reader.readAsDataURL(file);
     }
   };
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
+  }
+
+  const items = products || [];
 
   return (
     <div className="min-h-screen bg-slate-100 p-8">
@@ -145,16 +182,20 @@ export default function AdminProducts() {
             </div>
             <DialogFooter className="mt-6">
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="button" onClick={() => {
-                // Read values
-                const name = (document.getElementById("product-name") as HTMLInputElement).value;
-                const category = (document.getElementById("product-category") as HTMLInputElement).value as Product["category"];
-                const price = parseInt((document.getElementById("product-price") as HTMLInputElement).value || "0", 10);
-                const imageUrl = (document.getElementById("product-image") as HTMLInputElement).value;
-                const description = (document.getElementById("product-description") as HTMLInputElement).value;
-                if (!name) return alert("Please enter a name");
-                handleUpsert({ id: editing?.id ?? -1, name, category, price, imageUrl, description });
-              }}>Save</Button>
+              <Button type="button"
+                disabled={createMutation.isPending || updateMutation.isPending}
+                onClick={() => {
+                  const name = (document.getElementById("product-name") as HTMLInputElement).value;
+                  const category = (document.getElementById("product-category") as HTMLInputElement).value;
+                  const price = parseInt((document.getElementById("product-price") as HTMLInputElement).value || "0", 10);
+                  const imageUrl = (document.getElementById("product-image") as HTMLInputElement).value;
+                  const description = (document.getElementById("product-description") as HTMLInputElement).value;
+                  if (!name) return alert("Please enter a name");
+
+                  handleSave({ name, category, price, imageUrl, description });
+                }}>
+                {createMutation.isPending || updateMutation.isPending ? "Saving..." : "Save"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

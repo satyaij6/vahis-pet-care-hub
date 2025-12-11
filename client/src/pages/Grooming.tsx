@@ -8,24 +8,66 @@ import { groomingServices } from "@/lib/data";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import groomingImg from '@assets/generated_images/happy_dog_grooming.png';
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Booking } from "@shared/schema";
 
 export default function Grooming() {
   const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
+  // State for form fields
+  const [petType, setPetType] = useState("");
+  const [breed, setBreed] = useState("");
+  const [service, setService] = useState("");
+  const [dateTime, setDateTime] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
 
-    // Simulate API call
-    setTimeout(() => {
-      setIsLoading(false);
+  const bookingMutation = useMutation({
+    mutationFn: async (booking: Omit<Booking, "id">) => {
+      const res = await apiRequest("POST", "/api/bookings", booking);
+      return res.json();
+    },
+    onSuccess: () => {
       toast({
         title: "Booking Request Sent! 🛁",
         description: "We'll confirm your appointment on WhatsApp shortly.",
       });
-      (e.target as HTMLFormElement).reset();
-    }, 1500);
+      // Reset form
+      setPetType("");
+      setBreed("");
+      setService("");
+      setDateTime("");
+      setName("");
+      setPhone("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to submit booking. Please try again.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Format details
+    const detail = `${service} for ${breed} (${petType})`;
+    // Format time
+    const timeStr = new Date(dateTime).toLocaleString();
+
+    const newBooking = {
+      name,
+      phone: phone || null,
+      type: 'Grooming',
+      detail,
+      time: timeStr,
+      status: 'Pending'
+    };
+
+    bookingMutation.mutate(newBooking);
   };
 
   return (
@@ -73,7 +115,7 @@ export default function Grooming() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="petType">Pet Type</Label>
-                      <Select required>
+                      <Select required value={petType} onValueChange={setPetType}>
                         <SelectTrigger className="h-12 rounded-xl">
                           <SelectValue placeholder="Select..." />
                         </SelectTrigger>
@@ -85,13 +127,13 @@ export default function Grooming() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="breed">Breed</Label>
-                      <Input id="breed" placeholder="e.g. Shih Tzu" className="h-12 rounded-xl" required />
+                      <Input id="breed" placeholder="e.g. Shih Tzu" className="h-12 rounded-xl" required value={breed} onChange={(e) => setBreed(e.target.value)} />
                     </div>
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="service">Service Needed</Label>
-                    <Select required>
+                    <Select required value={service} onValueChange={setService}>
                       <SelectTrigger className="h-12 rounded-xl">
                         <SelectValue placeholder="Select Service..." />
                       </SelectTrigger>
@@ -105,21 +147,21 @@ export default function Grooming() {
 
                   <div className="space-y-2">
                     <Label htmlFor="date">Preferred Date & Time</Label>
-                    <Input id="date" type="datetime-local" className="h-12 rounded-xl" required />
+                    <Input id="date" type="datetime-local" className="h-12 rounded-xl" required value={dateTime} onChange={(e) => setDateTime(e.target.value)} />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="name">Your Name</Label>
-                    <Input id="name" placeholder="John Doe" className="h-12 rounded-xl" required />
+                    <Input id="name" placeholder="John Doe" className="h-12 rounded-xl" required value={name} onChange={(e) => setName(e.target.value)} />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="whatsapp">WhatsApp Number</Label>
-                    <Input id="whatsapp" placeholder="+91 98765 43210" className="h-12 rounded-xl" required />
+                    <Input id="whatsapp" placeholder="+91 98765 43210" className="h-12 rounded-xl" required value={phone} onChange={(e) => setPhone(e.target.value)} />
                   </div>
 
-                  <Button type="submit" className="w-full h-14 text-lg font-bold rounded-xl" disabled={isLoading}>
-                    {isLoading ? "Booking..." : "Request Appointment 📅"}
+                  <Button type="submit" className="w-full h-14 text-lg font-bold rounded-xl" disabled={bookingMutation.isPending}>
+                    {bookingMutation.isPending ? "Booking..." : "Request Appointment 📅"}
                   </Button>
                 </form>
               </CardContent>

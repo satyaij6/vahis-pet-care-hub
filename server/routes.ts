@@ -17,10 +17,91 @@ export async function registerRoutes(
 
   setupAuth(app);
 
+  app.get("/api/pets", async (_req, res) => {
+    const pets = await storage.getPets();
+    res.json(pets);
+  });
+
+  app.post("/api/pets", async (req, res) => {
+    // Only allow logged in users (admin) to create
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    // In a real app we'd validate against schema here
+    const pet = await storage.createPet(req.body);
+    res.status(201).json(pet);
+  });
+
+  app.patch("/api/pets/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    const pet = await storage.updatePet(id, req.body);
+    res.json(pet);
+  });
+
+  app.delete("/api/pets/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    await storage.deletePet(id);
+    res.sendStatus(204);
+  });
+
+  // Products API
+  app.get("/api/products", async (_req, res) => {
+    const products = await storage.getProducts();
+    res.json(products);
+  });
+
+  app.post("/api/products", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const product = await storage.createProduct(req.body);
+    res.status(201).json(product);
+  });
+
+  app.patch("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    const product = await storage.updateProduct(id, req.body);
+    res.json(product);
+  });
+
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    await storage.deleteProduct(id);
+    res.sendStatus(204);
+  });
+
+  // Bookings API
+  app.get("/api/bookings", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const bookings = await storage.getBookings();
+    res.json(bookings);
+  });
+
+  app.post("/api/bookings", async (req, res) => {
+    // Bookings (Enquiries/Visits) can be created by public
+    const booking = await storage.createBooking(req.body);
+    res.status(201).json(booking);
+  });
+
+  app.patch("/api/bookings/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    const booking = await storage.updateBooking(id, req.body);
+    res.json(booking);
+  });
+
+  app.delete("/api/bookings/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const id = parseInt(req.params.id);
+    await storage.deleteBooking(id);
+    res.sendStatus(204);
+  });
+
   app.post("/api/match-pet", async (req, res) => {
     try {
-      const { preferences, pets } = req.body;
-      console.log("Processing match request for preferences:", JSON.stringify(preferences)); // Debug log to confirm code update
+      const { preferences } = req.body;
+      console.log("Processing match request for preferences:", JSON.stringify(preferences));
 
       if (!preferences) {
         return res.status(400).json({ error: "Missing user preferences" });
@@ -32,8 +113,10 @@ export async function registerRoutes(
         return res.status(500).json({ error: "Gemini API key not configured" });
       }
 
-      if (!pets || !Array.isArray(pets)) {
-        return res.status(400).json({ error: "Invalid pets data: expected an array" });
+      const pets = await storage.getPets();
+
+      if (!pets || pets.length === 0) {
+        return res.status(400).json({ error: "No pets available in the system." });
       }
 
       // Filter available pets first

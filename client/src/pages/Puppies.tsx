@@ -1,12 +1,12 @@
 import Layout from "@/components/Layout";
 import PetCard from "@/components/PetCard";
-import { pets as initialPets } from "@/lib/data";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Filter } from "lucide-react";
+import { Search, Filter, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
+import { Pet } from "@shared/schema";
 
 export default function Puppies() {
   const [location] = useLocation();
@@ -16,8 +16,20 @@ export default function Puppies() {
   const [searchTerm, setSearchTerm] = useState(initialBreed);
   const [priceRange, setPriceRange] = useState<string>("all");
 
-  const [pets] = useLocalStorage("admin:pets", initialPets);
-  const filteredPets = pets.filter(pet => {
+  const { data: pets, isLoading } = useQuery<Pet[]>({ queryKey: ["/api/pets"] });
+
+  if (isLoading) {
+    return (
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="animate-spin h-8 w-8 text-primary" />
+        </div>
+      </Layout>
+    );
+  }
+
+  const items = pets || [];
+  const filteredPets = items.filter(pet => {
     const matchesSearch = pet.breed.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pet.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       pet.type.toLowerCase().includes(searchTerm.toLowerCase());

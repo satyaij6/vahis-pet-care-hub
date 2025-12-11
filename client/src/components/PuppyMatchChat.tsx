@@ -4,8 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Home, IndianRupee, Activity, Baby, Brain, Send, Share2, RefreshCw, Heart } from "lucide-react";
 import { Link } from "wouter";
-import { pets as initialPets } from "@/lib/data";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useToast } from "@/hooks/use-toast";
 
 interface UserPreferences {
@@ -32,7 +30,6 @@ export default function PuppyMatchChat() {
   const [isTyping, setIsTyping] = useState(false);
   const [result, setResult] = useState<Recommendation | null>(null);
   const [showSorry, setShowSorry] = useState(false);
-  const [pets] = useLocalStorage("admin:pets", initialPets);
   const { toast } = useToast();
 
   const questions = [
@@ -101,7 +98,7 @@ export default function PuppyMatchChat() {
       const res = await fetch("/api/match-pet", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferences, pets })
+        body: JSON.stringify({ preferences })
       });
 
       if (!res.ok) {
