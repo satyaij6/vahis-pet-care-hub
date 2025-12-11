@@ -8,5 +8,10 @@ if (!process.env.DATABASE_URL) {
     );
 }
 
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+const isRender = process.env.DATABASE_URL.includes("render.com");
+export const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isRender ? { rejectUnauthorized: false } : undefined
+});
 export const db = drizzle(pool, { schema });
