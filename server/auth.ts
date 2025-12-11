@@ -95,4 +95,24 @@ export function setupAuth(app: Express) {
         if (!req.isAuthenticated()) return res.sendStatus(401);
         res.json(req.user);
     });
+
+    // Auto-create default admin user if not exists
+    (async () => {
+        try {
+            const adminUser = await storage.getUserByUsername("admin");
+            if (!adminUser) {
+                console.log("Admin user not found, creating default admin...");
+                const hashedPassword = await bcrypt.hash("vahis123", 10);
+                await storage.createUser({
+                    username: "admin",
+                    password: hashedPassword,
+                    // Add other required fields if any, schema usually allows default or null for others if not specified
+                    // based on shared/schema.ts inspection earlier, user only has username/password/id mostly.
+                });
+                console.log("Default admin user created successfully.");
+            }
+        } catch (err) {
+            console.error("Failed to ensure default admin user:", err);
+        }
+    })();
 }
