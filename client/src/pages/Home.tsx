@@ -3,16 +3,24 @@ import PetCard from "@/components/PetCard";
 import CreativeBanner from "@/components/CreativeBanner";
 import Reviews from "@/components/Reviews";
 import { Button } from "@/components/ui/button";
-import { pets as initialPets } from "@/lib/data";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Link } from "wouter";
-import { ShieldCheck, Heart, Clock, ArrowRight, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, Heart, Clock, ArrowRight, CheckCircle2, Loader2 } from "lucide-react"; // Added Loader2
 import heroImg from '@assets/generated_images/happy_family_with_puppy_in_park.png';
+import { useQuery } from "@tanstack/react-query";
+import { Pet } from "@shared/schema";
 
 export default function Home() {
-  const [pets] = useLocalStorage("admin:pets", initialPets);
+  const { data: pets, isLoading } = useQuery<Pet[]>({
+    queryKey: ["pets"],
+    queryFn: async () => {
+      const res = await fetch("/api/pets");
+      if (!res.ok) throw new Error("Failed to fetch pets");
+      return res.json();
+    },
+  });
+
   // User request: Latest added first 3 pets
-  const featuredPets = [...pets].sort((a, b) => b.id - a.id).slice(0, 3);
+  const featuredPets = pets ? [...pets].sort((a, b) => b.id - a.id).slice(0, 3) : [];
 
   return (
     <Layout>
@@ -191,9 +199,15 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {featuredPets.map(pet => (
-              <PetCard key={pet.id} pet={pet} />
-            ))}
+            {isLoading ? (
+              <div className="col-span-full flex justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              </div>
+            ) : (
+              featuredPets.map(pet => (
+                <PetCard key={pet.id} pet={pet} />
+              ))
+            )}
           </div>
 
           <div className="mt-8 text-center md:hidden">
